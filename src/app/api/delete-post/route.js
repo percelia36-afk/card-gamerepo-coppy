@@ -6,11 +6,7 @@ export async function DELETE(req) {
     const user = await currentUser();
     if (!user) return new Response("Unauthorized", { status: 401 });
     const { postId } = await req.json();
-    // Debug: print user and postId
     // ...existing code...
-      postId,
-      userId: user.id,
-    });
     // Only allow delete if the post belongs to the user with this clerk_id
     const { rows } = await db.query(
       `SELECT posts.id, users.clerk_id FROM posts

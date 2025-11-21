@@ -1,9 +1,7 @@
 // /src/app/posts/page.js
 
-import dynamic from "next/dynamic";
-const PostsListClient = dynamic(() => import("@/components/PostsListClient"), {
-  ssr: false,
-});
+"use client";
+import PostsListClient from "@/components/PostsListClient";
 
 export default function GamePosts() {
   return (

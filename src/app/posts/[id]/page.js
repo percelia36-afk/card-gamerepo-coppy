@@ -1,69 +1,50 @@
 //  /scr/app/posts/[id]/page.js
-
-"use client";
-import { useState, useEffect } from "react";
+// No need for use() in server component
 import AddComment from "@/components/AddComment";
 import ShowComments from "@/components/ShowComments";
 import NavBar from "@/components/NavBar";
 import PostCommentsClientWrapper from "@/components/PostCommentsClientWrapper";
 import PostDeleteControlClient from "@/components/PostDeleteControlClient";
-import { useRouter } from "next/navigation";
+import { redirect } from "next/navigation";
+import { db } from "@/utils/dbConn";
 
-export default function Page({ params }) {
-  const router = useRouter();
-  // Defensive: ensure id is a valid number
+export default async function Page({ params }) {
+  // Await params as required by Next.js 16+ App Router
+  params = await params;
   let id = params?.id;
   if (typeof id === "string" && /^\d+$/.test(id)) {
     id = Number(id);
   } else {
     id = NaN;
   }
-  const [refreshKey, setRefreshKey] = useState(0);
-  const [post, setPost] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
 
-  useEffect(() => {
-    async function fetchPost() {
-      setLoading(true);
-      setError("");
-      try {
-        if (!id || isNaN(id)) throw new Error("Invalid post ID");
-        const res = await fetch(`/api/posts/${id}`);
-        if (!res.ok) throw new Error("Failed to fetch post");
-        const data = await res.json();
-        setPost(data);
-      } catch (err) {
-        setError("Error loading post");
-      } finally {
-        setLoading(false);
-      }
+  // Fetch post data directly from the database
+  let post = null;
+  if (id && !isNaN(id)) {
+    try {
+      const postRes = await db.query(
+        `SELECT posts.id, posts.title, posts.content, users.gamer_tag, users.id as user_id, users.clerk_id
+         FROM posts
+         LEFT JOIN users ON posts.user_id = users.id
+         WHERE posts.id = $1`,
+        [id]
+      );
+      post = postRes.rows[0] || null;
+    } catch (e) {
+      post = null;
     }
-    if (id && !isNaN(id)) fetchPost();
-    else setError("Invalid post ID");
-  }, [id, refreshKey]);
+  }
 
-  // Handler to refresh comments and post after delete
+  // Handler to redirect after delete (server-side)
   const handlePostDeleted = () => {
-    // Go back to posts list after delete
-    router.push("/posts");
+    redirect("/posts");
   };
 
+  // Render post content and comments UI
   return (
     <main className="min-h-screen flex flex-col items-center justify-center bg-gray-50 py-10">
       <article className="bg-white rounded-lg shadow-md p-8 max-w-2xl w-full border border-gray-200 text-center">
-        <PostDeleteControlClient
-          postUserId={post?.clerk_id || params.clerk_id}
-          postId={id && !isNaN(id) ? id : undefined}
-          onDeleted={handlePostDeleted}
-        />
-        {loading ? (
-          <div>Loading post...</div>
-        ) : error ? (
-          <div className="text-red-600">{error}</div>
-        ) : !post ? (
-          <div className="text-gray-500">Post not found.</div>
-        ) : (
+        {post ? (
           <>
             <h1 className="text-3xl font-extrabold text-gray-900 mb-4">
               {post.title || "Untitled"}
@@ -80,20 +61,21 @@ export default function Page({ params }) {
                 "Unknown"
               )}
             </div>
-            <div className="prose prose-lg text-gray-900 whitespace-pre-line text-left mx-auto">
+            <div className="prose prose-lg text-gray-900 whitespace-pre-line text-left mx-auto mb-6">
               {post.content || (
                 <span className="text-gray-400">No content</span>
               )}
             </div>
           </>
+        ) : (
+          <div className="text-gray-500">Post not found.</div>
         )}
       </article>
-      <section className="w-full max-w-2xl mt-8">
-        <PostCommentsClientWrapper
-          postId={id && !isNaN(id) ? id : undefined}
-          key={refreshKey}
-        />
-      </section>
+      {id && !isNaN(id) && (
+        <section className="w-full max-w-2xl mt-8">
+          <PostCommentsClientWrapper postId={id} key={id} />
+        </section>
+      )}
     </main>
   );
 }

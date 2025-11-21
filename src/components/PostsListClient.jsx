@@ -1,8 +1,8 @@
+"use client";
 import NewPostSection from "@/components/NewPostSection";
 import Link from "next/link";
 import Image from "next/image";
 import PostDeleteControlClient from "@/components/PostDeleteControlClient";
-("use client");
 import { useEffect, useState } from "react";
 // ...existing code...
 // ...existing code...
